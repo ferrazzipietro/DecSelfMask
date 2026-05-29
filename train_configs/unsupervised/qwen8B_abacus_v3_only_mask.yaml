@@ -1,0 +1,67 @@
+#Training args
+model_name_or_path: Qwen/Qwen3-8B
+hub_model_id: YOUR_PATH/unsup-Qwen3-8B-datav3-only_mask
+torch_dtype: bfloat16
+use_lora: false
+quantization: null
+gradient_checkpointing: true
+force_auto_device_map: false
+use_flash_attention: true
+deepspeed: train_configs/deepspeed_zero3.json
+
+output_dir: /workspace/models/unsup-Qwen3-8B-datav3-only_mask # /tmp/models #  /YOUR_PATH/models/Llama-3.1-8B-Instruct_10epochs_it
+overwrite_output_dir: true
+load_best_model_at_end: false
+metric_for_best_model: eval_loss
+greater_is_better: false
+save_strategy: "epoch"
+save_only_model: true
+save_total_limit: 1
+# auto_find_batch_size: true
+max_seq_length: 8192
+
+# evaluation
+do_train: true
+do_eval: false
+do_predict: false
+eval_strategy : "steps"
+eval_steps: 100000
+
+per_device_train_batch_size: 16
+per_device_eval_batch_size: 8
+gradient_accumulation_steps: 8
+
+# optimizer settings
+optim: adamw_torch
+learning_rate: 0.00004
+weight_decay: 0.001
+num_train_epochs: 1
+lr_scheduler_type: cosine
+warmup_ratio: 0.1
+adam_epsilon: 0.0000001
+max_grad_norm: 1
+
+# lora settings
+lora_r: 32
+lora_alpha: 64
+lora_dropout: 0.05
+lora_target_modules:
+  - all
+
+# reporting
+logging_strategy: steps
+logging_first_step: true
+logging_steps: 50
+report_to: wandb
+run_name: "unsup-Qwen3-8B-datav3-only_mask"
+disable_tqdm: false
+
+# hub settings
+push_to_hub: true
+resume_from_checkpoint: false
+
+# performance
+bf16: true
+fp16: false
+torch_compile: false
+ddp_find_unused_parameters: false
