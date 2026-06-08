@@ -28,132 +28,26 @@ def _format_instruct_conversation(example: Dict[str, str], system_prompt: str, r
         {"role": "assistant", "content": example["label"]},
     ]
 
-def _format_instruct_conversation_cpt_crf(example: Dict[str, str], system_prompt: str, mask_token: str, return_without_label: bool=False) -> List[Dict[str, str]]:
-    text = example["sentence"].replace(mask_token, f"{example['label']}")
+def _format_instruct_conversation_sft_task(
+        example: Dict[str, str], 
+        system_prompt: str, 
+        mask_token :str, 
+        return_without_label: bool=False, 
+        tag_token_start: str="",
+        item_column_name: str = "sft_item",
+        options_column_name: str = "options"
+        ) -> List[Dict[str, str]]:
     if return_without_label:
         return [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": text},
+            {"role": "user", "content": example["sentence"] + f"\n{tag_token_start}{example[item_column_name]}? {mask_token} </{tag_token_start}> <options>{example[options_column_name]}</options>"},
         ]
     return [
         {"role": "system", "content": system_prompt},
-        {"role": "user", "content": text}
-    ]
-
-def _format_instruct_plus_item_conversation(example: Dict[str, str], system_prompt: str, extra_instruction:str, return_without_label: bool=False) -> List[Dict[str, str]]:
-    item = example['id'].split('_span_')[1].split('_')[0]
-    if return_without_label:
-        return [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": example["sentence"] + f"\n {extra_instruction.format(item=item)}"},
-        ]
-    return [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": example["sentence"] + f"\n {extra_instruction.format(item=item)}"},
+        {"role": "user", "content": example["sentence"] + f"\n{tag_token_start}{example[item_column_name]}? {mask_token} </{tag_token_start}> <options>{example[options_column_name]}</options>"},
         {"role": "assistant", "content": example["label"]},
     ]
 
-def _format_instruct_conversation_crf_task(example: Dict[str, str], system_prompt: str, mask_token :str, return_without_label: bool=False) -> List[Dict[str, str]]:
-    if return_without_label:
-        return [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": example["sentence"] + f"\n<crf_item>{example['crf_item']}? {mask_token} </crf_item> <options>{example['options']}</options>"},
-        ]
-    return [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": example["sentence"] + f"\n<crf_item>{example['crf_item']}? {mask_token} </crf_item> <options>{example['options']}</options>"},
-        {"role": "assistant", "content": example["label"]},
-    ]
-
-def _format_instruct_conversation_admission_task(example: Dict[str, str], system_prompt: str, mask_token :str, return_without_label: bool=False) -> List[Dict[str, str]]:
-    if return_without_label:
-        return [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": example["text"] + f"\n<admission_item>{example['admission_type']}? {mask_token} </admission_item> <options>['yes', 'no']</options>"},
-        ]
-    return [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": example["text"] + f"\n<admission_item>{example['admission_type']}? {mask_token} </admission_item> <options>['yes', 'no']</options>"},
-        {"role": "assistant", "content": example["label"]},
-    ]
-
-def _format_instruct_conversation_mesh_task(example: Dict[str, str], system_prompt: str, mask_token :str, return_without_label: bool=False) -> List[Dict[str, str]]:
-    if return_without_label:
-        return [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": example["abstractText"] + f"\n<mesh_item>{example['mesh_target']}? {mask_token} </mesh_item> <options>['Yes', 'No']</options>"},
-        ]
-    return [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": example["abstractText"] + f"\n<mesh_item>{example['mesh_target']}? {mask_token} </mesh_item> <options>['Yes', 'No']</options>"},
-        {"role": "assistant", "content": example["label"]},
-    ]
-
-
-def _format_instruct_conversation_medqa_task(example: Dict[str, str], system_prompt: str, mask_token :str, return_without_label: bool=False) -> List[Dict[str, str]]:
-    options_text = [example['translated_answer_opa'], example['translated_answer_opb'], example['translated_answer_opc'], example['translated_answer_opd']]
-    if return_without_label:
-        return [
-            {"role": "system", "content": system_prompt},
-            # {"role": "user", "content": f"\n<question>{example['full_question']} {mask_token} </question> <options>{example['options']}</options>"}
-            {"role": "user", "content": f"Date le opzioni {options_text}, {example['full_question']} {mask_token}"},
-        ]
-    return [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": f"Date le opzioni {options_text}, {example['full_question']} {mask_token}"},
-        # {"role": "user", "content": f"\n<question>{example['full_question']} {mask_token} </question> <options>{example['options']}</options>"},
-        {"role": "assistant", "content": options_text[example['cop']]}, #
-    ]
-
-def  _format_instruct_conversation_qa_task(example: Dict[str, str], system_prompt: str, mask_token :str, return_without_label: bool=False) -> List[Dict[str, str]]:
-    if return_without_label:
-        return [
-            {"role": "system", "content": system_prompt},
-            # {"role": "user", "content": f"\n<question>{example['full_question']} {mask_token} </question> <options>{example['options']}</options>"}
-            {"role": "user", "content": f"{example['sentence']}\n{example['question']} {mask_token}"},
-        ]
-    return [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": f"{example['sentence']}\n{example['question']} {mask_token}"},
-        # {"role": "user", "content": f"\n<question>{example['full_question']} {mask_token} </question> <options>{example['options']}</options>"},
-        {"role": "assistant", "content": example['label']}, #
-    ]
-
-def _format_instruct_conversation_simple_classification_task(example: Dict[str, str], system_prompt: str, mask_token :str, return_without_label: bool=False) -> List[Dict[str, str]]:
-    if return_without_label:
-        return [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": example["text"] + f"\nThe patient's condition is {mask_token}"},
-        ]
-    return [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": example["text"] + f"\nThe patient's condition is {mask_token}"},
-        {"role": "assistant", "content": example["condition"]}, #
-    ]
-
-def _format_instruct_conversation_instruct_chronic_task(example: Dict[str, str], system_prompt: str, mask_token :str, return_without_label: bool=False) -> List[Dict[str, str]]:
-    if return_without_label:
-        return [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": example["text"] + f"\nDoes the patient have any chronic conditions? {mask_token}"},
-        ]
-    return [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": example["text"] + f"\nDoes the patient have any chronic conditions? {mask_token}"},
-        {"role": "assistant", "content": 'yes' if example["condition"] == 'chronic' else 'no'}, #
-    ]
-
-def _format_instruct_conversation_instruct_tlocvsdyspnea_task(example: Dict[str, str], system_prompt: str, mask_token :str, return_without_label: bool=False) -> List[Dict[str, str]]:
-    if return_without_label:
-        return [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": example["text"] + f"\nDoes the patient have TLOC? {mask_token}"},
-        ]
-    return [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": example["text"] + f"\nDoes the patient have TLOC? {mask_token}"},
-        {"role": "assistant", "content": 'yes' if example["condition"] == 'tloc' else 'no'}, #
-    ]
 
 def _format_and_tokenize_instruct_batch(
     tokenizer: PreTrainedTokenizerBase,
@@ -269,7 +163,10 @@ class MedLlmDataset(Dataset):
         train_data_path: str = '',
         train_data_split: str = 'train',
         training_type: str = 'next_token_pred',
-        calculate_loss_on_prompt: bool = False
+        calculate_loss_on_prompt: bool = False,
+        tag_token_start: str = "",
+        item_column_name: str = "sft_item",
+        options_column_name: str = "options",
     ):
         print(f"Loading dataset {train_data_path}...")
 
@@ -292,70 +189,25 @@ class MedLlmDataset(Dataset):
         if max_n_examples is not None:
             max_n_examples = min(max_n_examples, len(data))
             data = data.select(range(max_n_examples))
-        # s_size = min([len(data), 100])
-        # data = data.select(range(s_size))
-
-
-        # Filter early to reduce work
-        # if training_type in ['next_token_pred', 'instruct'] and 'has_group_left' in data.column_names:
-        #     data = data.filter(lambda x: x['has_group_left'], num_proc=min(os.cpu_count() or 1, 8))
 
         special_ids = tokenizer.added_tokens_decoder.keys()
         token_for_masking = tokenizer.added_tokens_decoder[list(special_ids)[-2]].content
         mask_token = token_for_masking
-        if training_type == 'instruct_crf_task' or training_type == 'instruct_mesh' :
+        if training_type == 'dec_self_mask':
             system_prompt = "Fill in the masked word in the following sentence."
             format_convesation_fn = lambda example, return_without_label=False: _format_instruct_conversation(example, system_prompt=system_prompt, return_without_label=return_without_label)
-        elif training_type == 'continual_pretraining_crf':
-            system_prompt = ""
-            format_convesation_fn = lambda example, return_without_label=False: _format_instruct_conversation_cpt_crf(example, system_prompt=system_prompt, mask_token=mask_token, return_without_label=return_without_label)
-        elif training_type == 'instruct_plus_item_crf':
-            extra_instruction = "Data la storia del paziente, nel paziente si riscontra {item}"
+        elif training_type == 'sft_task':
             system_prompt = "Fill in the masked word in the following sentence."
-            format_convesation_fn = lambda example, return_without_label=False: _format_instruct_plus_item_conversation(example, system_prompt=system_prompt, extra_instruction=extra_instruction, return_without_label=return_without_label)
-        elif training_type == 'instruct_plus_item_mesh':
-            extra_instruction =  "One of the mesh terms in this abstract is {item}"
-            system_prompt = "Fill in the masked word in the following sentence."
-            format_convesation_fn = lambda example, return_without_label=False: _format_instruct_plus_item_conversation(example, system_prompt=system_prompt, extra_instruction=extra_instruction, return_without_label=return_without_label)
-        elif training_type == 'crf_task':
-            system_prompt = "Fill in the masked word in the following sentence."
-            format_convesation_fn = lambda example, return_without_label=False: _format_instruct_conversation_crf_task(example, system_prompt=system_prompt, mask_token=mask_token, return_without_label=return_without_label)
-        elif training_type == 'admission_task':
-            system_prompt = "Fill in the masked word in the following sentence."
-            format_convesation_fn = lambda example, return_without_label=False: _format_instruct_conversation_admission_task(example, system_prompt=system_prompt, mask_token=mask_token, return_without_label=return_without_label)
-        elif training_type == 'mesh_task':
-            system_prompt = "Fill in the masked word in the following sentence."
-            format_convesation_fn = lambda example, return_without_label=False: _format_instruct_conversation_mesh_task(example, system_prompt=system_prompt, mask_token=mask_token, return_without_label=return_without_label)
-        elif training_type == 'medqa_task':
-            system_prompt = "Fill in the masked word in the following sentence."
-            format_convesation_fn = lambda example, return_without_label=False: _format_instruct_conversation_medqa_task(example, system_prompt=system_prompt, mask_token=mask_token, return_without_label=return_without_label)
-        elif training_type == 'qa_task':
-            system_prompt = "Fill in the masked word in the following sentence."
-            format_convesation_fn = lambda example, return_without_label=False: _format_instruct_conversation_qa_task(example, system_prompt=system_prompt, mask_token=mask_token, return_without_label=return_without_label)
-        elif training_type in ['tlocvsdyspnea_task', 'chronicity_task']:
-            system_prompt = "Fill in the masked word in the following sentence."
-            format_convesation_fn = lambda example, return_without_label=False: _format_instruct_conversation_simple_classification_task(example, system_prompt=system_prompt, mask_token=mask_token, return_without_label=return_without_label)
-        elif training_type == 'instruct_chronic_task':
-            system_prompt = "Fill in the masked word in the following sentence."
-            format_convesation_fn = lambda example, return_without_label=False: _format_instruct_conversation_instruct_chronic_task(example, system_prompt=system_prompt, mask_token=mask_token, return_without_label=return_without_label)
-        elif training_type == 'instruct_tlocvsdyspnea_task':
-            system_prompt = "Fill in the masked word in the following sentence."
-            format_convesation_fn = lambda example, return_without_label=False: _format_instruct_conversation_instruct_tlocvsdyspnea_task(example, system_prompt=system_prompt, mask_token=mask_token, return_without_label=return_without_label)
-        if training_type == 'next_token_pred':
+            format_convesation_fn = lambda example, return_without_label=False: _format_instruct_conversation_sft_task(example, system_prompt=system_prompt, mask_token=mask_token, return_without_label=return_without_label, tag_token_start=tag_token_start, item_column_name=item_column_name, options_column_name=options_column_name)
+        else:
             raise NotImplementedError("next_token_pred training type is not implemented yet.")
-        # Two paths:
-        # 1) Pre-tokenized datasets (already have input_ids/labels)
-        # 2) Raw sentence/label pairs to tokenize
         has_pretokenized = all(
             col in data.column_names for col in ["input_ids", "labels"]
         )
 
         if has_pretokenized:
-            # Ensure attention_mask exists and loss_weight_mask is all ones
             def ensure_masks(batch: Dict[str, List[Any]]):
                 input_ids = batch["input_ids"]
-                # Normalize to lists of lists
-                # Build masks per example length
                 attn = batch.get("attention_mask")
                 mask = batch.get("loss_weight_mask")
                 out_attention = []

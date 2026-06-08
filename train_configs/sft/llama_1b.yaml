@@ -1,6 +1,6 @@
 #Training args
-model_name_or_path: YOUR_PATH/unsup-Qwen3-8B-datav3
-hub_model_id: YOUR_PATH/tlocvsdyspneaTask-unsup-Qwen3-8B-datav3
+model_name_or_path: ferrazzipietro/DecSelfMask-Llama-3.2-1B-Instruct
+hub_model_id: ferrazzipietro/SFT-DecSelfMask-Llama-3.2-1B-Instruct
 torch_dtype: bfloat16
 use_lora: true
 quantization: null
@@ -9,7 +9,7 @@ force_auto_device_map: false
 use_flash_attention: true
 deepspeed: train_configs/deepspeed_zero2.json
 
-output_dir: /models/tlocvsdyspneaTask-unsup-Qwen3-8B-datav3
+output_dir: data/c_sft_models/SFT-DecSelfMask-Llama-3.2-1B-Instruct
 overwrite_output_dir: true
 load_best_model_at_end: false
 metric_for_best_model: eval_loss
@@ -26,15 +26,15 @@ do_predict: false
 eval_strategy : "steps"
 eval_steps: 2
 
-per_device_train_batch_size: 8
+per_device_train_batch_size: 16
 per_device_eval_batch_size: 16
-gradient_accumulation_steps: 8
+gradient_accumulation_steps: 4
 
 # optimizer settings
 optim: adamw_torch
 learning_rate: 0.0003
 weight_decay: 0.001
-num_train_epochs: 3
+num_train_epochs: 1
 lr_scheduler_type: cosine
 warmup_ratio: 0.1
 adam_epsilon: 0.0000001
@@ -51,7 +51,7 @@ logging_strategy: steps
 logging_first_step: true
 logging_steps: 5
 report_to: wandb
-run_name: "tlocvsdyspneaTask-unsup-Qwen3-8B-datav3"
+run_name: "SFT-DecSelfMask-Llama-3.2-1B-Instruct"
 disable_tqdm: false
 
 # hub settings

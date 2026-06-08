@@ -163,7 +163,8 @@ if __name__ == "__main__":
     parser.add_argument('--type_of_masking', type=str, required=False, default='all_group', help='Type of masking to create training sequences: single_token or all_group.')
     parser.add_argument('--cache_dir', type=str, required=False, default='/workspace/.cache', help='Cache directory for the tokenizer.')
     parser.add_argument('--exclude_single_group_sequences', action='store_true', help='Whether to exclude sequences with only a single high-importance group.')
-    parser.add_argument('--output_dir', type=str, required=False, default='data/cc_train_sequences_mesh_batch_2', help='Directory to save the output training sequences.')
+    parser.add_argument('--output_dir', type=str, required=False, default='data/a_train_sequences', help='Directory to save the output training sequences if pushiong to hf fails.')
+    parser.add_argument('--hf_account_name', type=str, required=True, help='Hugging Face account name for pushing the dataset to the hub.')
     args = parser.parse_args()
 
 
@@ -256,19 +257,20 @@ if __name__ == "__main__":
     train_dataset = d.filter(lambda x: x['note_id'] in single_note_ids[:train_note_size], num_proc=16)
     validation_dataset = d.filter(lambda x: x['note_id'] in single_note_ids[train_note_size:], num_proc=16)
 
-    out_dir_path = os.path.join(args.output_dir, args.type_of_masking, token_for_masking)
-    os.makedirs(out_dir_path, exist_ok=True)
+
     model = model.split('/')[-1]
     try:
-        train_dataset.push_to_hub(f'YOUR_PATH/{args.smoothing_method}_{model}_{len(d)}', split='train', token=HF_TOKEN, commit_message=args.input_path)
-        validation_dataset.push_to_hub(f'YOUR_PATH/{args.smoothing_method}_{model}_{len(d)}', split='validation', token=HF_TOKEN, commit_message=args.input_path)
-        logger.info(f"Pushed to hub at YOUR_PATH/{args.smoothing_method}_{model}_{len(d)}.")
+        train_dataset.push_to_hub(f'{args.hf_account_name}/DecSelfMask-{args.smoothing_method}_{model}', split='train', token=HF_TOKEN, commit_message=args.input_path)
+        validation_dataset.push_to_hub(f'{args.hf_account_name}/DecSelfMask-{args.smoothing_method}_{model}', split='validation', token=HF_TOKEN, commit_message=args.input_path)
+        logger.info(f"Pushed to hub at {args.hf_account_name}/DecSelfMask-{args.smoothing_method}_{model}.")
     except Exception as e:
         logger.warning(f"Could not push to hub: {e}")
-    try:
-        train_dataset.to_json(f'{out_dir_path}/{args.smoothing_method}_{model}_train.json')
-        logger.info(f"Saved locally at {out_dir_path}/{args.smoothing_method}_{model}_train.json.")
-        validation_dataset.to_json(f'{out_dir_path}/{args.smoothing_method}_{model}_validation.json')
-        logger.info(f"Saved locally at {out_dir_path}/{args.smoothing_method}_{model}_validation.json.")
-    except Exception as e:
-        logger.warning(f"Could not save locally: {e}")
+        try:
+            out_dir_path = os.path.join(args.output_dir, args.type_of_masking, token_for_masking)
+            os.makedirs(out_dir_path, exist_ok=True)
+            train_dataset.to_json(f'{out_dir_path}/{args.smoothing_method}_{model}_train.json')
+            logger.info(f"Saved locally at {out_dir_path}/{args.smoothing_method}_{model}_train.json.")
+            validation_dataset.to_json(f'{out_dir_path}/{args.smoothing_method}_{model}_validation.json')
+            logger.info(f"Saved locally at {out_dir_path}/{args.smoothing_method}_{model}_validation.json.")
+        except Exception as e:
+            logger.warning(f"Could not save locally: {e}")

@@ -2,8 +2,6 @@ from torch.utils.data import Dataset, DataLoader
 import torch 
 
 
-
-
 class ClassificationDataset(Dataset):
     def __init__(self, hf_dataset, tokenizer, label2id, mask_token, label_col_name, max_length=512):
         self.data = hf_dataset
@@ -45,15 +43,11 @@ class ClassificationDataset(Dataset):
         return item
 
 
-class CRFClassificationDataset(ClassificationDataset):
+class ClassificationHeadDataset(ClassificationDataset):
     def _make_text(self, example):
         return example["sentence"] + f"{example['crf_item']}? {self.mask_token}"
 
-class MeshClassificationDataset(ClassificationDataset):
-    def _make_text(self, example):
-        return example["abstractText"] + f"{example['mesh_target']}? {self.mask_token}"
-
-class CRFClassificationDatasetInstruction(ClassificationDataset):
+class ClassificationHeadDatasetInstruction(ClassificationDataset):
     def _make_text(self, example):
         messages = [
             {"role": "system", "content": "You are an expert medical doctor. Your task is to fill the Case Report Form item with the correct answer based on the provided sentence."},
@@ -61,19 +55,6 @@ class CRFClassificationDatasetInstruction(ClassificationDataset):
         ]
         return self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     
-
-class TlocVsDyspneaClassificationDataset(ClassificationDataset):
-     def _make_text(self, example):
-        return example["text"]
-
-class TlocVsDyspneaClassificationDatasetInstruction(ClassificationDataset):
-    def _make_text(self, example):
-        messages = [
-            {"role": "system", "content": "You are an expert medical doctor. Your task is to determine whether the patient's symptoms are more indicative of TLOC (transient loss of consciousness) or Dyspnea (difficulty breathing) based on the provided sentence."},
-            {"role": "user", "content": f"Sentence: {example['text']}"}
-        ]
-        return self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-
 
 def collate_fn(batch, pad_token_id=0):
     """Dynamic padding: pad each batch to the longest sequence in that batch."""

@@ -1,6 +1,9 @@
-# Unsupervised CRF (Submission Trim)
+# DecSelfMaskervised CRF (Submission Trim)
 
 This repository is trimmed for paper submission. It keeps only the scripts and configs needed to reproduce the main pipeline with Qwen8 on CRF, plus the baseline and item-by-item classifier runs.
+
+
+create a .env file with HF_TOKEN and WANDB_KEY
 
 ## Kept Pipeline Scripts
 
@@ -11,7 +14,7 @@ This repository is trimmed for paper submission. It keeps only the scripts and c
 - **CC - Build training sequences**
   - `cc_create_train_seq.py`
 
-- **D - Unsupervised training**
+- **D - DecSelfMaskervised training**
   - `d_train.py`
   - `d_train_one_CLUSTER_NAME.sh`
   - `d_train_one_wrapper_CLUSTER_NAME.sh`
@@ -22,7 +25,7 @@ This repository is trimmed for paper submission. It keeps only the scripts and c
   - `f_train_crf_task_one_wrapper_CLUSTER_NAME.sh`
 
 - **H - Item-by-item classifier**
-  - `h_train_class_over_unsup.py`
+  - `h_train_class_over_DecSelfMask.py`
   - `h_train_one_class_per_item.sh`
 
 - **I - Baselines**
@@ -31,16 +34,18 @@ This repository is trimmed for paper submission. It keeps only the scripts and c
 
 ## Kept Configs
 
-- `train_configs/unsupervised/qwen8B_CLUSTER_NAME_v3_only_mask.yaml`
-- `train_configs/crf_task/unsup_qwen8B_crf_lora.yaml`
-- `train_configs/chronicity_task/unsup_qwen8B_crf_lora.yaml`
-- `train_configs/admission_task/unsup_qwen8B_crf_lora_only_mask_w_item.yaml`
+- `train_configs/DecSelfMaskervised/qwen8B_CLUSTER_NAME_v3_only_mask.yaml`
+- `train_configs/crf_task/DecSelfMask_qwen8B_crf_lora.yaml`
+- `train_configs/chronicity_task/DecSelfMask_qwen8B_crf_lora.yaml`
+- `train_configs/admission_task/DecSelfMask_qwen8B_crf_lora_only_mask_w_item.yaml`
 - `train_configs/deepspeed_*.json` and `train_configs/accelerate.json`
 
 ## Requirements
 
+Python version: `3.14`
 ```bash
 pip install -r requirements.txt
+pip install torch==2.12 torchvision=0.27
 ```
 
 Scripts expect:
@@ -70,7 +75,7 @@ Minimal launch example:
 ```bash
 bash f_train_task.sh \
 	--accelerate_config_file train_configs/deepspeed_1.json \
-	--custom_config_file train_configs/crf_task/unsup_qwen_crf_lora_datav3.yaml \
+	--custom_config_file train_configs/crf_task/DecSelfMask_qwen_crf_lora_datav3.yaml \
 	--train_data_path YOUR_PATH/crf-second-batch-item-by-item-balanced \
 	--train_data_split train \
 	--val_data_path YOUR_PATH/crf-second-batch-item-by-item-balanced \

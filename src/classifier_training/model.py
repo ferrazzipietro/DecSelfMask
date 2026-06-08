@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from transformers import AutoModelForCausalLM, AutoTokenizer, Gemma3ForCausalLM
+from transformers import AutoModelForCausalLM, AutoTokenizer # , Gemma3ForCausalLM
 from torch.utils.data import Dataset, DataLoader
 
 class LlamaLastTokenClassifier(nn.Module):
@@ -30,7 +30,6 @@ class LlamaLastTokenClassifier(nn.Module):
         self.classifier = nn.Sequential(
             nn.Linear(hidden_size, 256, dtype=torch_dtype),
             nn.ReLU() if use_non_linearity else nn.Identity(),
-            # nn.ReLU() if use_non_linearity else nn.Identity(),
             nn.Dropout(0.1),
             nn.Linear(256, num_classes, dtype=torch_dtype)
         )

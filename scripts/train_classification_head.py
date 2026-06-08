@@ -4,7 +4,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from torch.utils.data import Dataset, DataLoader
 
 from src.classifier_training.model import LlamaLastTokenClassifier
-from src.classifier_training.data import CRFClassificationDataset, collate_fn, MeshClassificationDataset, CRFClassificationDatasetInstruction, TlocVsDyspneaClassificationDataset, TlocVsDyspneaClassificationDatasetInstruction
+from src.classifier_training.data import ClassificationHeadDataset, collate_fn, ClassificationHeadDatasetInstruction
 
 from datasets import load_dataset
 from transformers import AutoTokenizer
@@ -19,6 +19,7 @@ from argparse import ArgumentParser
 import time
 import evaluate
 import torch.optim as optim
+import functools
 login(token=dotenv_values('.env')['HF_TOKEN'])
 
 
@@ -30,7 +31,32 @@ handler = logging.StreamHandler()
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
-logger.info("Starting classifier training over unsupervised model...")
+logger.info("Starting classifier training over DecSelfMaskervised model...")
+
+
+def load_dataset_with_compat_retry(dataset_path: str, cache_dir: str):
+    try:
+        return load_dataset(dataset_path, cache_dir=cache_dir)
+    except ValueError as exc:
+        error_message = str(exc)
+        if "Feature type 'List' not found" not in error_message:
+            raise
+
+        fallback_cache_dir = os.path.join(cache_dir, "datasets_schema_compat")
+        os.makedirs(fallback_cache_dir, exist_ok=True)
+        logger.warning(
+            "Detected incompatible cached dataset schema ('List'). Retrying with force_redownload in %s",
+            fallback_cache_dir,
+        )
+        return load_dataset(
+            dataset_path,
+            cache_dir=fallback_cache_dir,
+            download_mode="force_redownload",
+        )
+
+
+def collate_with_padding(batch, pad_token_id):
+    return collate_fn(batch, pad_token_id=pad_token_id)
 
 def evaluation(dataloader_val, f1, model, calc_per_item:bool = True, verbose=False):
                 model.eval()
@@ -49,7 +75,7 @@ def evaluation(dataloader_val, f1, model, calc_per_item:bool = True, verbose=Fal
                         all_val_preds.extend(val_preds.cpu().tolist())
                         all_val_labels.extend(val_labels.cpu().tolist())
                         if calc_per_item:
-                            all_val_items.extend(val_batch[col_name])
+                            all_val_items.extend(val_batch[args.target_col_name])
                     if verbose: print(f"all_val_preds: {all_val_preds}")
                     if verbose: print(f"all_val_labels: {all_val_labels}")
                 if calc_per_item:
@@ -83,59 +109,42 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--model_path", type=str, default='meta-llama/Llama-3.2-1B-Instruct', help="Path to the pretrained model")
     parser.add_argument("--dataset_path", type=str, default="YOUR_PATH/crf-second-batch-item-by-item-balanced", help="Path to the dataset (Hugging Face format)")
-    parser.add_argument("--freeze_lm", action="store_true", help="Whether to freeze the language model weights during training")
+    parser.add_argument("--target_col_name", type=str, required=True, help="Name of the column in the dataset that contains the labels")
+    parser.add_argument("--label_col_name", type=str, default='label', help="Name of the column in the dataset that contains the labels")
+    parser.add_argument("--freeze_lm", type=str, default='false', choices=['true', 'false'], help="Whether to freeze the language model weights during training")
     parser.add_argument("--train_max_size", type=int, default=100_000, help="Maximum number of examples to use from the training set")
     parser.add_argument("--val_max_size", type=float, default=0.5, help="Maximum number of examples to use from the validation set")
     parser.add_argument("--test_max_size", type=int, default=100_000, help="Maximum number of examples to use from test set")
     parser.add_argument("--train_batch_size", type=int, default=128, help="Batch size for training")
     parser.add_argument("--eval_batch_size", type=int, default=64, help="Batch size for evaluation")
     parser.add_argument("--num_epochs", type=int, default=20, help="Number of training epochs")
-    parser.add_argument("--eval_every_percent", type=float, default=0.10, help="Evaluate every X% of an epoch (e.g., 0.10 for every 10%)")
+    parser.add_argument("--eval_every_percent", type=float, default=0.10, help="Evaluate every percentage of an epoch (e.g., 0.10)")
     parser.add_argument("--cache_dir", type=str, default='/workspace/.cache', help="Directory to cache datasets and models")
     parser.add_argument("--type_of_prompt", type=str, default='mask', choices=['mask', 'instruction'], help="Whether to use 'mask' or 'instruction' prompts for the classifier input")
-    parser.add_argument("--use_non_linearity", type=str, default='true', help="Whether to use a non-linearity (ReLU) in the classifier head. Set to 'false' for very small datasets to reduce overfitting.")
-    parser.add_argument("--task_type",  choices=["mesh_task", "crf_task", "medqa_task", "instruct", "qa_task", "tlocvsdyspnea_task", "chronicity_task"], type=str, required=True, help='Type of task to train on "crf_task", "medqa_task", "instruct"')
-    parser.add_argument("--crf_item", type=str, default='all', help="The CRF item to classify. If 'all', the model will be trained to classify all items together (multiclass classification). If a specific item is provided, the model will be trained to classify that item only.")
+    parser.add_argument("--use_non_linearity", type=str, default='true', choices=['true', 'false'], help="Whether to use a non-linearity (ReLU) in the classifier head. Set to 'false' for very small datasets to reduce overfitting.")
+    parser.add_argument("--item", type=str, default='all', help="The item to classify. If 'all', the model will be trained to classify all items together (multiclass classification). If a specific item is provided, the model will be trained to classify that item only.")
     args = parser.parse_args()
 
     print('args: ', args)
 
-    labels_mapper = {
-        'crf_task': 'label',
-        'tlocvsdyspnea_task': 'condition',
-        'chronicity_task': 'condition',
-        'mesh_task': 'label',
-    }
-    try:
-        label_col_name = labels_mapper[args.task_type]
-    except:
-        raise ValueError(f"Invalid task type: {args.task_type}. Must be one of {list(labels_mapper.keys())}")
+    label_col_name = args.label_col_name
 
-    if args.task_type == 'crf_task' and args.type_of_prompt == 'mask':
-        DatasetClassificationClass = CRFClassificationDataset
-    elif args.task_type == 'crf_task' and args.type_of_prompt == 'instruction':
-        DatasetClassificationClass = CRFClassificationDatasetInstruction
-    elif args.task_type == 'mesh_task' and args.type_of_prompt == 'mask':
-        DatasetClassificationClass = MeshClassificationDataset
-    elif args.task_type == 'mesh_task' and args.type_of_prompt == 'instruction':
-        raise NotImplementedError("Instruction-based prompting not yet implemented for mesh classification task")
-    elif (args.task_type == 'tlocvsdyspnea_task' or args.task_type == 'chronicity_task') and args.type_of_prompt == 'mask':
-        DatasetClassificationClass = TlocVsDyspneaClassificationDataset
-    elif (args.task_type == 'tlocvsdyspnea_task' or args.task_type == 'chronicity_task') and args.type_of_prompt == 'instruction':
-        DatasetClassificationClass = TlocVsDyspneaClassificationDatasetInstruction
-    else:
-        raise ValueError(f"Unsupported combination of task_type {args.task_type} and type_of_prompt {args.type_of_prompt}")
+    if args.type_of_prompt == 'mask':
+        DatasetClassificationClass = ClassificationHeadDataset
+    elif args.type_of_prompt == 'instruction':
+        DatasetClassificationClass = ClassificationHeadDatasetInstruction
+   
+        raise ValueError(f"DecSelfMaskported combination of type_of_prompt {args.type_of_prompt}")
 
-    d = load_dataset(args.dataset_path, cache_dir=args.cache_dir)
+    d = load_dataset_with_compat_retry(args.dataset_path, args.cache_dir)
     logger.info(f"Loaded dataset from {args.dataset_path}\n{d}")
-    col_name = 'crf_item' if args.task_type == 'crf_task' else 'mesh_target'
-    if args.task_type in ['crf_task', 'mesh_task'] and args.crf_item != 'all':
-        logger.info(f"Filtering dataset for {args.task_type} item: {args.crf_item}")
+    if args.item != 'all':
+        logger.info(f"Filtering dataset for item: {args.item}")
         for split in d:
-            d[split] = d[split].filter(lambda x: x[col_name] == args.crf_item.replace("____", "/"))
+            d[split] = d[split].filter(lambda x: x[args.target_col_name] == args.item.replace("____", "/"))
             logger.info(f"After filtering, split '{split}' has {len(d[split])} examples.")
             if len(d[split]) == 0:
-                logger.warning(f"No examples found for {args.task_type} item '{args.crf_item.replace("____", "/")}' in split '{split}'. Please check the dataset and {args.task_type} item name.")
+                logger.warning(f"No examples found for item '{args.item.replace("____", "/")}' in split '{split}'. Please check the dataset and item name.")
                 exit(1)
     
     os.environ['HF_HOME'] = args.cache_dir   
@@ -154,14 +163,13 @@ if __name__ == "__main__":
         }
     print(config_wandb)
 
-    crf_item_appendix_name = '' if args.crf_item == 'all' else f"_one_per_item"
+    item_appendix_name = '' if args.item == 'all' else f"_one_per_item"
     wandb.init(
-        project=f"classifier-over-unsup-{args.task_type}-{crf_item_appendix_name}",
-        name=f"{args.model_path.split('/')[-1]}_freezeLM{args.freeze_lm}_epochs_{args.num_epochs}_batchsize{args.train_batch_size}{instruct_mode}{non_linearity_mode}_{args.crf_item}",
+        project=f"classification-head-over-DecSelfMask-{item_appendix_name}",
+        name=f"{args.model_path.split('/')[-1]}_freezeLM{args.freeze_lm}_epochs_{args.num_epochs}_batchsize{args.train_batch_size}{instruct_mode}{non_linearity_mode}_{args.item}",
         config=config_wandb,
     )
 
-    # Use ALL labels across ALL splits to ensure consistency
     all_labels = set()
     for split in d:
         all_labels.update(d[split][label_col_name])
@@ -177,7 +185,7 @@ if __name__ == "__main__":
         num_classes=num_classes,
         cache_dir=args.cache_dir,
         use_non_linearity=args.use_non_linearity == 'true',
-        freeze_lm=args.freeze_lm  # set True if dataset is small
+        freeze_lm=args.freeze_lm == 'true' 
     )
     print(model)
 
@@ -219,21 +227,23 @@ if __name__ == "__main__":
 
     train_dataset = DatasetClassificationClass(train, tokenizer, label2id, mask_token=mask_token, label_col_name=label_col_name)
     logger.info(f"Created train dataset with {len(train_dataset)} examples.")
+    train_collate = functools.partial(collate_with_padding, pad_token_id=pad_token_id)
     dataloader = DataLoader(train_dataset, batch_size=args.train_batch_size, shuffle=True,
                             num_workers=2, pin_memory=True,
-                            collate_fn=lambda b: collate_fn(b, pad_token_id=pad_token_id))
+                            collate_fn=train_collate)
     logger.info(f"validation: {validation}, test: {test}")
     validation_dataset = DatasetClassificationClass(validation, tokenizer, label2id, mask_token=mask_token, label_col_name=label_col_name)
     logger.info(f"Created validation dataset with {len(validation_dataset)} examples.")
     logger.info(f"First example in validation dataset: {validation_dataset[0]}")
     test_dataset = DatasetClassificationClass(test, tokenizer, label2id, mask_token=mask_token, label_col_name=label_col_name)
 
+    eval_collate = functools.partial(collate_with_padding, pad_token_id=pad_token_id)
     dataloader_val = DataLoader(validation_dataset, batch_size=args.eval_batch_size, shuffle=False,
                                 num_workers=4, pin_memory=True,
-                                collate_fn=lambda b: collate_fn(b, pad_token_id=pad_token_id))
+                                collate_fn=eval_collate)
     dataloader_test = DataLoader(test_dataset, batch_size=args.eval_batch_size, shuffle=False,
                                 num_workers=4, pin_memory=True,
-                                collate_fn=lambda b: collate_fn(b, pad_token_id=pad_token_id))
+                                collate_fn=eval_collate)
 
     logger.info(f"Dataset size: {len(train_dataset)}, Batches: {len(dataloader)}")
     # Quick sanity check
@@ -241,27 +251,17 @@ if __name__ == "__main__":
     logger.info(f"input_ids shape: {sample['input_ids'].shape}, label: {id2label[sample['labels'].item()]}")
 
 
-    # Save the model
-    if args.task_type == 'crf_task':
-        if args.crf_item == 'all':
-            save_dir = os.path.join("trainer_output", "classifier_over_unsup", 'crf_all', args.model_path.split("/")[-1], f"crf_item_{args.crf_item}", f"freeze_lm_{args.freeze_lm}", f"epochs_{args.num_epochs}")
-        else:
-            save_dir = os.path.join("trainer_output", "classifier_over_unsup", 'crf_one_class_per_item', args.model_path.split("/")[-1], f"crf_item_{args.crf_item}", f"freeze_lm_{args.freeze_lm}", f"epochs_{args.num_epochs}")
+    if args.item == 'all':
+        save_dir = os.path.join("data", "d_classification_head", "classifier_over_DecSelfMask", 'all', args.model_path.split("/")[-1], f"item_{args.item}", f"freeze_lm_{args.freeze_lm}", f"epochs_{args.num_epochs}")
     else:
-        save_dir = os.path.join("trainer_output", "classifier_over_unsup", args.task_type, args.model_path.split("/")[-1], f"freeze_lm_{args.freeze_lm}", f"epochs_{args.num_epochs}")
+        save_dir = os.path.join("data", "d_classification_head", "classifier_over_DecSelfMask", 'one_head_per_item', args.model_path.split("/")[-1], f"item_{args.item}", f"freeze_lm_{args.freeze_lm}", f"epochs_{args.num_epochs}")
     os.makedirs(save_dir, exist_ok=True)
 
-
     criterion = nn.CrossEntropyLoss()
-
     optimizer = optim.AdamW(model.classifier.parameters(), lr=1e-3)
-
     scaler = torch.amp.GradScaler()
-
     model.train()
-
     f1 = evaluate.load("f1")
-
     eval_every_n_steps = max(1, int(len(dataloader) * args.eval_every_percent))  # e.g., every 48% of an epoch
     logger.info(f"Will evaluate every {eval_every_n_steps} steps (every {args.eval_every_percent*100}% of an epoch)")
     best_eval_f1_macro_so_far = 0
@@ -337,7 +337,6 @@ if __name__ == "__main__":
     num_classes = ckpt["num_classes"]
     label2id = ckpt["label2id"]
     id2label = ckpt["id2label"]
-    cache_dir = "/YOUR_PATH/.cache"
 
     print(f"Loaded checkpoint from {ckpt_path}")
     print(f"num_classes={num_classes}, label2id={label2id}")
@@ -348,8 +347,8 @@ if __name__ == "__main__":
     best_model = LlamaLastTokenClassifier(
         model_path=model_path,
         num_classes=num_classes,
-        cache_dir=cache_dir,
-        freeze_lm=True,
+        cache_dir=args.cache_dir,
+        freeze_lm=args.freeze_lm == 'true'
     )
     best_model.classifier.load_state_dict(ckpt["classifier_state_dict"])
     best_model = best_model.to(device)
