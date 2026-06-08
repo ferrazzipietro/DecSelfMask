@@ -1,4 +1,4 @@
-# DecSelfMask — Reproducible package for the paper
+# DecSelfMask 
 
 This repository contains the code and minimal artifacts required to run the DecSelfMask method
 
