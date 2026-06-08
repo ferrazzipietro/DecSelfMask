@@ -1,133 +1,83 @@
-# DecSelfMaskervised CRF (Submission Trim)
+# DecSelfMask — Reproducible package for the paper
 
-This repository is trimmed for paper submission. It keeps only the scripts and configs needed to reproduce the main pipeline with Qwen8 on CRF, plus the baseline and item-by-item classifier runs.
+This repository contains the code and minimal artifacts required to run the DecSelfMask method
 
 
-create a .env file with HF_TOKEN and WANDB_KEY
+**Environment & quick links**
+- **Code:** [scripts/](scripts/)
+- **Configs:** [train_configs/](train_configs/)
+- **Top-level run wrappers:** [a_create_dec_self_mask_sequences.sh](a_create_dec_self_mask_sequences.sh), [b_dec_self_mask_train.sh](b_dec_self_mask_train.sh), [c_sft.sh](c_sft.sh), [d_classification_head.sh](d_classification_head.sh)
 
-## Kept Pipeline Scripts
+**Required environment variables**
+- **HF_TOKEN:** HuggingFace token with read/write access (if pushing to HF Hub)
+- **WANDB_KEY:** (optional) Weights & Biases API key for experiment tracking
 
-- **B - Unannotated scoring**
-  - `b_calculate_scores_unannotated_sequencial.sh`
-  - `b_calculate_scores_unannotated_speedup.py`
+Create a `.env` (or export variables) before running scripts, e.g.:
 
-- **CC - Build training sequences**
-  - `cc_create_train_seq.py`
+```bash
+export HF_TOKEN=your_hf_token
+export WANDB_KEY=your_wandb_key
+export PYTHONPATH="$PYTHONPATH:$PWD"
+```
 
-- **D - DecSelfMaskervised training**
-  - `d_train.py`
-  - `d_train_one_CLUSTER_NAME.sh`
-  - `d_train_one_wrapper_CLUSTER_NAME.sh`
+**Dependencies**
+- Install from the provided lockfile:
 
-- **F - SFT on CRF task**
-  - `f_train_task.py`
-  - `f_train_task.sh`
-  - `f_train_crf_task_one_wrapper_CLUSTER_NAME.sh`
-
-- **H - Item-by-item classifier**
-  - `h_train_class_over_DecSelfMask.py`
-  - `h_train_one_class_per_item.sh`
-
-- **I - Baselines**
-  - `l_baselines_bert.py`
-  - `l_baselines_bert.sh`
-
-## Kept Configs
-
-- `train_configs/DecSelfMaskervised/qwen8B_CLUSTER_NAME_v3_only_mask.yaml`
-- `train_configs/crf_task/DecSelfMask_qwen8B_crf_lora.yaml`
-- `train_configs/chronicity_task/DecSelfMask_qwen8B_crf_lora.yaml`
-- `train_configs/admission_task/DecSelfMask_qwen8B_crf_lora_only_mask_w_item.yaml`
-- `train_configs/deepspeed_*.json` and `train_configs/accelerate.json`
-
-## Requirements
-
-Python version: `3.14`
 ```bash
 pip install -r requirements.txt
-pip install torch==2.12 torchvision=0.27
 ```
 
-Scripts expect:
-- `.env` with `HF_TOKEN=...`
-- `wandb` login if you want experiment tracking enabled
+- Notable packages (from `requirements.txt`): accelerate, transformers, datasets, bitsandbytes, wandb, torch-compatible runtime. See `requirements.txt` for pinned versions.
 
-## Notes
+**Directory overview**
+- **scripts/**: entry-point scripts used in experiments (training, evaluation, scoring)
+- **src/**: data loaders, training utilities, model loading and evaluation functions
+- **train_configs/**: YAML configs for model + runtime (DeepSpeed / accelerate)
+- **data/**: example data artifacts and helper files
 
-- Source code remains under `src/` for training, datasets, and model loading.
-- All other analysis notebooks, legacy scripts, and extra configs were removed for submission.
-	- Builds QA-style dataset and publishes to HF.
-- `fff_create_results_table_sft.py`
-	- Post-training evaluation script (vLLM-based generation + F1 reporting).
-- `fff_create_results_table_sft.sh`
-	- Batch evaluation wrapper for multiple SFT models.
+## Reproducing experiments (high level)
 
-### Typical SFT Run Path
+1) Prepare data and training sequences for the DecSelfMask training
+- Run: [a_create_dec_self_mask_sequences.sh](a_create_dec_self_mask_sequences.sh)
+- This script builds pretraining / fine-tuning sequences from your dataset and writes outputs into `data/`.
 
-1. Choose task (`crf_task`, `qa_task`, `medqa_task`).
-2. Select/create YAML config in `train_configs/<task_type>/`.
-3. Select DeepSpeed runtime config in `train_configs/deepspeed_*.json`.
-4. Launch training via `f_train_task.sh` or `f_train_task_one_wrapper.sh`.
-5. Evaluate resulting model with `fff_create_results_table_sft.py`.
+2) Train DecSelfMask pretraining runs
+- Run: [b_dec_self_mask_train.sh](b_dec_self_mask_train.sh)
+- Use the YAMLs in [train_configs/DecSelfMask/](train_configs/DecSelfMask/) and a runtime config from [train_configs/](train_configs/).
 
-Minimal launch example:
+3) SFT finetuning on target task
+- Run: [c_sft.sh](c_sft.sh)
+- Choose the task-specific YAML in [train_configs/](train_configs/) (e.g. `train_configs/DecSelfMask/llama_1b.yaml`) and point `--train_data_path` to the prepared dataset.
 
-```bash
-bash f_train_task.sh \
-	--accelerate_config_file train_configs/deepspeed_1.json \
-	--custom_config_file train_configs/crf_task/DecSelfMask_qwen_crf_lora_datav3.yaml \
-	--train_data_path YOUR_PATH/crf-second-batch-item-by-item-balanced \
-	--train_data_split train \
-	--val_data_path YOUR_PATH/crf-second-batch-item-by-item-balanced \
-	--val_data_split validation \
-	--task_type crf_task \
-	--cache_dir /workspace/.cache
+4) Item-by-item classification head experiments
+- Run: [d_classification_head.sh](d_classification_head.sh)
+- This wrapper runs `scripts/train_classification_head.py` over items listed in `data/targets_for_self_masking.txt` and stores results under `data/d_classification_head/...`.
+
+5) Evaluation & aggregation
+- After training, use the evaluation scripts in `scripts/`, e.g. `scripts/train_classification_head_eval.py` and `scripts/train_classification_head_aggregate_results.py` (wrapped by [d_classification_head.sh](d_classification_head.sh)).
+
+
+## Various
+- See `src/training/dataset.py` for the exact loader logic and formatting conventions.
+
+### Configs and tuning
+- Runtime (DeepSpeed / accelerate) configs live in [train_configs/](train_configs/).
+- Model/training hyperparameters are set in the YAML files under [train_configs/DecSelfMask/](train_configs/DecSelfMask/).
+
+### Wandb 
+By default, all runs are logged into `wandb`.
+
+## Contact & licensing
+- **Author / contact:** Pietro Ferrazzipietro (see repository metadata)
+- **License:** check the repository LICENSE or contact the authors for reuse permissions
+
+
+
+**If you use this work, please cite the paper:**
+
+- **Paper:** Ferrazzipietro et al., DecSelfMask: ... (full citation here)
+- **BibTeX (example):**
+
 ```
-
-### Data Contracts You Should Preserve
-
-SFT loaders expect specific columns depending on task formatting in `src/training/dataset.py`:
-- CRF task expects fields like `sentence`, `crf_item`, `options`, `label`.
-- QA task expects fields like `sentence`, `question`, `label`.
-- MEDQA task formatting uses option fields (for example `translated_answer_opa` ... `translated_answer_opd`) and answer index.
-
-When changing formatting logic, keep train/eval prompt conventions aligned between:
-- `src/training/dataset.py`
-- `fff_create_results_table_sft.py`
-
-### High-Impact Extension Points
-
-If you want to modify SFT behavior, these are the safest places:
-
-- Change task prompt formatting:
-	- Edit task-specific formatter functions in `src/training/dataset.py`.
-- Change metrics definition:
-	- Edit `src/training/evaluation_functions.py`.
-- Change LoRA/quantization/model loading:
-	- Edit `src/training/load_model.py` and corresponding YAML config values.
-- Change optimizer/scheduler/checkpoint/eval cadence:
-	- Edit the task YAML in `train_configs/<task_type>/` and HF `Seq2SeqTrainingArguments` values there.
-- Change wrapper-level experiment orchestration:
-	- Edit `f_train_task_one_wrapper.sh` or `f_train_crf_task_one_wrapper_CLUSTER_NAME.sh`.
-
-### SFT Outputs and Evaluation
-
-Training outputs are controlled by the YAML config `output_dir` and optional HF Hub target (`hub_model_id`).
-
-For evaluation:
-- Run `fff_create_results_table_sft.py` with `--model_path`.
-- Results are appended to `data/fff/results_table_sft.xlsx`.
-
-### Contribution Checklist for SFT Changes
-
-When opening a PR that touches SFT code, include:
-
-1. Task type affected (`crf_task`, `qa_task`, or `medqa_task`).
-2. YAML config file path and any changed config fields.
-3. Exact training launch command.
-4. Exact evaluation command.
-5. Output model/checkpoint path or Hub id.
-6. Metrics summary (for example macro/micro/weighted F1 for CRF, or accuracy for QA/MEDQA).
-7. Any tokenizer special-token assumptions added/changed.
-
-If you have any questions, open an issue and reference the exact script and command you are using.
+TO BE ADDED
+```
