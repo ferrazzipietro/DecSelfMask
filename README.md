@@ -67,16 +67,9 @@ pip install -r requirements.txt
 ### Wandb 
 By default, all runs are logged into `wandb`.
 
-## Contact & licensing
-- **Author / contact:** Pietro Ferrazzipietro (see repository metadata)
-- **License:** check the repository LICENSE or contact the authors for reuse permissions
-
 
 
 **If you use this work, please cite the paper:**
-
-- **Paper:** Ferrazzipietro et al., DecSelfMask: ... (full citation here)
-- **BibTeX (example):**
 
 ```
 TO BE ADDED
