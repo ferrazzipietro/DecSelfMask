@@ -1,138 +1,130 @@
-# DecSelfMask — Reproducible package for the paper
+# DecSelfMask — Self-Contained Package
 
-This repository contains the code and minimal artifacts required to run the DecSelfMask method
+This repository contains the class-first, self-contained Python package for the DecSelfMask method. The old script wrappers and the old `src/` training stack have been folded into the package so the main workflow can now be used directly from Python.
 
-
-**Environment & quick links**
-- **Code:** [scripts/](scripts/)
+**Quick links**
+- **Package:** [dec_self_mask/](dec_self_mask/)
+- **Example notebook:** [dec_self_mask_example.ipynb](dec_self_mask_example.ipynb)
 - **Configs:** [train_configs/](train_configs/)
-- **Top-level run wrappers:** [a_create_dec_self_mask_sequences.sh](a_create_dec_self_mask_sequences.sh), [b_dec_self_mask_train.sh](b_dec_self_mask_train.sh), [c_sft.sh](c_sft.sh), [d_classification_head.sh](d_classification_head.sh)
+- **Data artifacts:** [data/](data/)
 
 **Required environment variables**
-- **HF_TOKEN:** HuggingFace token with read/write access (if pushing to HF Hub)
-- **WANDB_KEY:** (optional) Weights & Biases API key for experiment tracking
+- **HF_TOKEN:** Hugging Face token with read/write access if you push to the Hub.
+- **WANDB_KEY:** optional Weights & Biases API key for experiment tracking.
 
-Create a `.env` (or export variables) before running scripts, e.g.:
+Create a `.env` file or export the variables before running any step:
 
 ```bash
 export HF_TOKEN=your_hf_token
 export WANDB_KEY=your_wandb_key
-export PYTHONPATH="$PYTHONPATH:$PWD"
 ```
 
 **Dependencies**
-- Install from the provided lockfile:
+- Install the package in editable mode:
 
 ```bash
-pip install -r requirements.txt
+pip install -e .
 ```
 
-- Notable packages (from `requirements.txt`): accelerate, transformers, datasets, bitsandbytes, wandb, torch-compatible runtime. See `requirements.txt` for pinned versions.
+- The project uses standard Hugging Face and PyTorch tooling. See [requirements.txt](requirements.txt) for the pinned environment used by the repository.
 
-**Directory overview**
-- **scripts/**: entry-point scripts used in experiments (training, evaluation, scoring)
-- **src/**: data loaders, training utilities, model loading and evaluation functions
-- **dec_self_mask/**: importable workflow package with programmatic entrypoints for the full pipeline
-- **train_configs/**: YAML configs for model + runtime (DeepSpeed / accelerate)
-- **data/**: example data artifacts and helper files
+## Package Overview
 
-## Programmatic usage
+The package exports the class-first API from [dec_self_mask/__init__.py](dec_self_mask/__init__.py).
 
-Install the project in editable mode, then call the workflow helpers directly from Python:
+- `RelevanceCalculator` computes token relevancy from a Hugging Face dataset or local JSON file.
+- `DecSelfMaskSequencesMaker` turns relevancy results into DecSelfMask training sequences.
+- `DecSelfMaskTrainer` runs DecSelfMask training and exposes `train()` and `evaluate()`.
+- `SFTTrainer` runs the supervised fine-tuning stage and exposes `train()` and `evaluate()`.
+- `ClassificationHeadTrainer` trains, evaluates, and aggregates the classification-head experiments.
+
+The package also includes the reusable internal modules required by those classes, so it no longer depends on the deleted `src/` training stack.
+
+## End-to-End Workflow
+
+The full pipeline is:
+
+1. Calculate relevance scores for the source dataset.
+2. Build masked DecSelfMask sequences from the relevancy output.
+3. Train the DecSelfMask model.
+4. Fine-tune the model with SFT.
+5. Train and evaluate a classification head on top of the trained model.
+
+The example notebook [dec_self_mask_example.ipynb](dec_self_mask_example.ipynb) shows each of these steps in order.
+
+## Example Usage
+
+The notebook is the best starting point, but the same flow can be used directly in Python:
 
 ```python
 from dec_self_mask import (
-	RelevanceCalculator,
-	RelevanceCalculatorConfig,
-	DecSelfMaskSequencesMaker,
-	SequenceMakerConfig,
-	DecSelfMaskTrainingArguments,
-	DecSelfMaskTrainer,
-	SFTTrainer,
-	SFTTrainerConfig,
-	ClassificationHeadTrainer,
-	ClassificationHeadTrainerConfig,
+    RelevanceCalculator,
+    RelevanceCalculatorConfig,
+    DecSelfMaskSequencesMaker,
+    SequenceMakerConfig,
+    DecSelfMaskTrainingArguments,
+    DecSelfMaskTrainer,
+    SFTTrainer,
+    SFTTrainerConfig,
+    ClassificationHeadTrainer,
+    ClassificationHeadTrainerConfig,
 )
 
 relevance = RelevanceCalculator(RelevanceCalculatorConfig(
-	model_name="meta-llama/Llama-3.2-1B-Instruct",
-	data_path="wikimedia/wikipedia",
-	data_config="20231101.es",
-	id_column_name="id",
-	text_column_name="text",
+    model_name="meta-llama/Llama-3.2-1B-Instruct",
+    data_path="wikimedia/wikipedia",
+    data_config="20231101.es",
+    id_column_name="id",
+    text_column_name="text",
 ))
+
+relevance_output = relevance.calculate()
 
 sequences = DecSelfMaskSequencesMaker(SequenceMakerConfig(
-	input_path="data/a_attention_relevancy_unannotated/wikipedia/Llama-3.2-1B-Instruct/combined_mid.json",
-	hf_account_name="ferrazzipietro",
+    input_path="data/a_attention_relevancy_unannotated/wikipedia/Llama-3.2-1B-Instruct/combined_mid.json",
+    hf_account_name="ferrazzipietro",
 ))
+datasets = sequences.build_datasets()
 
 trainer = DecSelfMaskTrainer(DecSelfMaskTrainingArguments(
-	custom_config_file="train_configs/DecSelfMask/llama_1b.yaml",
+    custom_config_file="train_configs/DecSelfMask/llama_1b.yaml",
 ))
-
-relevance.calculate()
-sequences.build_datasets()
 trainer.train()
+trainer.evaluate()
 
 sft = SFTTrainer(SFTTrainerConfig(
-	custom_config_file="train_configs/sft/llama_1b.yaml",
+    custom_config_file="train_configs/sft/llama_1b.yaml",
 ))
-
 sft.train()
+sft.evaluate()
 
 classifier = ClassificationHeadTrainer(ClassificationHeadTrainerConfig(
-	model_path="ferrazzipietro/DecSelfMask-Llama-3.2-1B-Instruct",
-	item="all",
+    model_path="ferrazzipietro/DecSelfMask-Llama-3.2-1B-Instruct",
+    item="all",
 ))
-
 classifier.train()
 classifier.evaluate()
+classifier.aggregate_results()
 ```
 
-## Reproducing experiments (high level)
+## Configuration
 
-1) Prepare data and training sequences for the DecSelfMask training
-- Run: [a_create_dec_self_mask_sequences.sh](a_create_dec_self_mask_sequences.sh)
-- This script builds pretraining / fine-tuning sequences from your dataset and writes outputs into `data/`.
+- Runtime and model configs live in [train_configs/](train_configs/).
+- The DecSelfMask and SFT model YAMLs live under [train_configs/DecSelfMask/](train_configs/DecSelfMask/) and [train_configs/sft/](train_configs/sft/).
+- Default dataset and formatting logic are embedded in the package classes, so you do not need the old shell scripts to run the workflow.
 
-2) Train DecSelfMask pretraining runs
-- Run: [b_dec_self_mask_train.sh](b_dec_self_mask_train.sh)
-- Use the YAMLs in [train_configs/DecSelfMask/](train_configs/DecSelfMask/) and a runtime config from [train_configs/](train_configs/).
+## Notes
 
-3) SFT finetuning on target task
-- Run: [c_sft.sh](c_sft.sh)
-- Choose the task-specific YAML in [train_configs/](train_configs/) (e.g. `train_configs/DecSelfMask/llama_1b.yaml`) and point `--train_data_path` to the prepared dataset.
+- The notebook and package code are designed to be run from the repository root with `pip install -e .`.
+- By default, experiment tracking uses `wandb` when configured in the training arguments.
+- If you push to the Hugging Face Hub, set `HF_TOKEN` in the environment.
 
-4) Item-by-item classification head experiments
-- Run: [d_classification_head.sh](d_classification_head.sh)
-- This wrapper runs `scripts/train_classification_head.py` over items listed in `data/targets_for_self_masking.txt` and stores results under `data/d_classification_head/...`.
+## Contact & Licensing
 
-5) Evaluation & aggregation
-- After training, use the evaluation scripts in `scripts/`, e.g. `scripts/train_classification_head_eval.py` and `scripts/train_classification_head_aggregate_results.py` (wrapped by [d_classification_head.sh](d_classification_head.sh)).
-
-
-## Various
-- See `src/training/dataset.py` for the exact loader logic and formatting conventions.
-
-### Configs and tuning
-- Runtime (DeepSpeed / accelerate) configs live in [train_configs/](train_configs/).
-- Model/training hyperparameters are set in the YAML files under [train_configs/DecSelfMask/](train_configs/DecSelfMask/).
-
-### Wandb 
-By default, all runs are logged into `wandb`.
-
-## Contact & licensing
 - **Author / contact:** Pietro Ferrazzipietro (see repository metadata)
 - **License:** check the repository LICENSE or contact the authors for reuse permissions
-
-
 
 **If you use this work, please cite the paper:**
 
 - **Paper:** Ferrazzipietro et al., DecSelfMask: ... (full citation here)
-- **BibTeX (example):**
-
-```
-TO BE ADDED
-```
+- **BibTeX:** to be added

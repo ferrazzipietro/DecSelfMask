@@ -25,7 +25,7 @@ class SequenceMakerConfig:
     type_of_masking: str = "all_group"
     cache_dir: str | None = None
     exclude_single_group_sequences: bool = False
-    output_dir: str = "data/a_train_sequences"
+    output_dir: str = "dec_self_mask_train_sequences"
     hf_account_name: str | None = None
     hf_token: str | None = None
 
