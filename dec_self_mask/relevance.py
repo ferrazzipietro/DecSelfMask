@@ -19,7 +19,7 @@ from ._hf import login_if_available
 @dataclass(slots=True)
 class RelevanceCalculatorConfig:
     model_name: str = "meta-llama/Llama-3.1-8B-Instruct"
-    data_path: str = "Pretrain- -YOUR_PATH_ORG/ClinicalWhole"
+    data_path: str = "YOUR_PATH_ORG/ClinicalWhole"
     data_config: str = "default"
     data_split: str = "train"
     id_column_name: str = "id"
@@ -98,8 +98,8 @@ class RelevanceCalculator:
         return data.select(range(self.config.start_from_note, end_idx))
 
     def _load_targets(self) -> list[str]:
-        if self.targets is not None:
-            return self.targets
+        if self.config.targets is not None:
+            return self.config.targets
         with open(self.config.file_with_targets, "r") as handle:
             self.targets = handle.read().splitlines()
         return self.targets
