@@ -26,6 +26,7 @@ class RelevanceCalculatorConfig:
     text_column_name: str = "text"
     max_text_length: int = -1
     file_with_targets: str = "data/targets_for_self_masking.txt"
+    targets: list[str] | None = None
     start_from_note: int = 0
     end_at_note: int = -1
     cache_dir: str = "/YOUR_PATH/.cache/"
@@ -42,7 +43,6 @@ class RelevanceCalculator:
         self.tokenizer = None
         self.model = None
         self.scorer = None
-        self.targets: list[str] | None = None
 
     def _load_tokenizer_and_model(self):
         if self.tokenizer is not None and self.model is not None:
