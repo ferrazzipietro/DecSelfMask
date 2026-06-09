@@ -2,7 +2,7 @@
 
 This repository contains the code and minimal artifacts required to run the DecSelfMask method
 
-If you want to use it as a python package, go to the `import-as-python-package` branch! _Be aware that it is a beta version_
+If you want to use it as a python package, go to the `use-as-python-package` branch!
 
 
 **Environment & quick links**
