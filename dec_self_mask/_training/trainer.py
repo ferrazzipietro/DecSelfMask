@@ -22,7 +22,7 @@ from transformers.trainer_callback import TrainerCallback
 from transformers.trainer_utils import EvalPrediction
 from transformers.utils import SAFE_WEIGHTS_NAME, WEIGHTS_NAME, is_safetensors_available
 
-from src.training.config import ModelArguments
+from .config import ModelArguments
 
 if is_safetensors_available():
     import safetensors.torch

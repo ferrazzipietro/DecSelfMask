@@ -20,7 +20,7 @@ from transformers.models.auto.modeling_auto import (
 )
 from transformers.utils import is_ipex_available
 
-from src.training.model_utils import find_all_linear_names, get_trainable_parameters
+from .._training.model_utils import find_all_linear_names, get_trainable_parameters
 from liger_kernel.transformers import AutoLigerKernelForCausalLM
 
 

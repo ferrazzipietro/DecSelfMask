@@ -32,8 +32,63 @@ pip install -r requirements.txt
 **Directory overview**
 - **scripts/**: entry-point scripts used in experiments (training, evaluation, scoring)
 - **src/**: data loaders, training utilities, model loading and evaluation functions
+- **dec_self_mask/**: importable workflow package with programmatic entrypoints for the full pipeline
 - **train_configs/**: YAML configs for model + runtime (DeepSpeed / accelerate)
 - **data/**: example data artifacts and helper files
+
+## Programmatic usage
+
+Install the project in editable mode, then call the workflow helpers directly from Python:
+
+```python
+from dec_self_mask import (
+	RelevanceCalculator,
+	RelevanceCalculatorConfig,
+	DecSelfMaskSequencesMaker,
+	SequenceMakerConfig,
+	DecSelfMaskTrainingArguments,
+	DecSelfMaskTrainer,
+	SFTTrainer,
+	SFTTrainerConfig,
+	ClassificationHeadTrainer,
+	ClassificationHeadTrainerConfig,
+)
+
+relevance = RelevanceCalculator(RelevanceCalculatorConfig(
+	model_name="meta-llama/Llama-3.2-1B-Instruct",
+	data_path="wikimedia/wikipedia",
+	data_config="20231101.es",
+	id_column_name="id",
+	text_column_name="text",
+))
+
+sequences = DecSelfMaskSequencesMaker(SequenceMakerConfig(
+	input_path="data/a_attention_relevancy_unannotated/wikipedia/Llama-3.2-1B-Instruct/combined_mid.json",
+	hf_account_name="ferrazzipietro",
+))
+
+trainer = DecSelfMaskTrainer(DecSelfMaskTrainingArguments(
+	custom_config_file="train_configs/DecSelfMask/llama_1b.yaml",
+))
+
+relevance.calculate()
+sequences.build_datasets()
+trainer.train()
+
+sft = SFTTrainer(SFTTrainerConfig(
+	custom_config_file="train_configs/sft/llama_1b.yaml",
+))
+
+sft.train()
+
+classifier = ClassificationHeadTrainer(ClassificationHeadTrainerConfig(
+	model_path="ferrazzipietro/DecSelfMask-Llama-3.2-1B-Instruct",
+	item="all",
+))
+
+classifier.train()
+classifier.evaluate()
+```
 
 ## Reproducing experiments (high level)
 

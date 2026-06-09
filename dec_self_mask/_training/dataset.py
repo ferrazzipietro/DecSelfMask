@@ -11,9 +11,10 @@ from transformers import BatchEncoding, PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
 from datasets import Dataset as HFDataset
 from datasets import load_dataset
-from dotenv import dotenv_values
-from huggingface_hub import login
-login(dotenv_values('.env')['HF_TOKEN'])
+from .._hf import login_if_available
+
+
+login_if_available()
 
 
 def _format_instruct_conversation(example: Dict[str, str], system_prompt: str, return_without_label: bool=False) -> List[Dict[str, str]]:
