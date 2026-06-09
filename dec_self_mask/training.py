@@ -24,7 +24,7 @@ class DecSelfMaskTrainingArguments:
     max_n_examples_train: int | None = None
     max_n_examples_val: int | None = None
     calculate_loss_on_prompt: bool = False
-    cache_dir: str = "/workspace/.cache"
+    cache_dir: str | None = None
     task_type: str = "dec_self_mask"
 
 

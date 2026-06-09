@@ -29,7 +29,7 @@ class RelevanceCalculatorConfig:
     targets: list[str] | None = None
     start_from_note: int = 0
     end_at_note: int = -1
-    cache_dir: str = "/YOUR_PATH/.cache/"
+    cache_dir: str | None = None
     use_which_token: str = "mid"
     keep_n_sequences_per_note: int = -1
     path_save: str = "/YOUR_PATH/unannotated_crf/data/"

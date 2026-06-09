@@ -24,7 +24,7 @@ class SFTTrainerConfig:
     max_n_examples_val: int | None = None
     max_n_examples_test: int | None = None
     calculate_loss_on_prompt: bool = False
-    cache_dir: str = "/workspace/.cache"
+    cache_dir: str | None = None
     task_type: str = "sft_task"
     tag_token_start: str = "<sft_item>"
     item_column_name: str = "sft_item"

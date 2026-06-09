@@ -23,7 +23,7 @@ class SequenceMakerConfig:
     threshold_lower: float = 0.2
     sep_token: str = "Ġ"
     type_of_masking: str = "all_group"
-    cache_dir: str = "/workspace/.cache"
+    cache_dir: str | None = None
     exclude_single_group_sequences: bool = False
     output_dir: str = "data/a_train_sequences"
     hf_account_name: str | None = None
