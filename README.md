@@ -119,12 +119,17 @@ classifier.aggregate_results()
 - By default, experiment tracking uses `wandb` when configured in the training arguments.
 - If you push to the Hugging Face Hub, set `HF_TOKEN` in the environment.
 
-## Contact & Licensing
-
-- **Author / contact:** Pietro Ferrazzipietro (see repository metadata)
-- **License:** check the repository LICENSE or contact the authors for reuse permissions
 
 **If you use this work, please cite the paper:**
 
-- **Paper:** Ferrazzipietro et al., DecSelfMask: ... (full citation here)
-- **BibTeX:** to be added
+```
+@misc{ferrazzi2026decselfmaskleveragingunlabeledtext,
+      title={DECSELFMASK: Leveraging Unlabeled Text via Self-Relevance-Guided Masking for Decoder-Only Classification}, 
+      author={Pietro Ferrazzi and Matteo Merler and Giovanni Bonetta and Alberto Lavelli and Bernardo Magnini},
+      year={2026},
+      eprint={2606.09466},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2606.09466}, 
+}
+```
