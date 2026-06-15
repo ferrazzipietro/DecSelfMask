@@ -113,12 +113,6 @@ classifier.aggregate_results()
 - The DecSelfMask and SFT model YAMLs live under [train_configs/DecSelfMask/](train_configs/DecSelfMask/) and [train_configs/sft/](train_configs/sft/).
 - Default dataset and formatting logic are embedded in the package classes, so you do not need the old shell scripts to run the workflow.
 
-## Notes
-
-- The notebook and package code are designed to be run from the repository root with `pip install -e .`.
-- By default, experiment tracking uses `wandb` when configured in the training arguments.
-- If you push to the Hugging Face Hub, set `HF_TOKEN` in the environment.
-
 
 **If you use this work, please cite the paper:**
 
