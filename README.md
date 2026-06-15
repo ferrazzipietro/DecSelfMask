@@ -23,7 +23,7 @@ export WANDB_KEY=your_wandb_key
 - Install the package in editable mode:
 
 ```bash
-pip install -e .
+pip install git+https://github.com/ferrazzipietro/DecSelfMask.git@use-as-python-package
 ```
 
 - The project uses standard Hugging Face and PyTorch tooling. See [requirements.txt](requirements.txt) for the pinned environment used by the repository.
