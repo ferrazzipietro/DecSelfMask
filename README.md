@@ -1,6 +1,8 @@
 # DecSelfMask 
 
-This repository contains the code and minimal artifacts required to run the DecSelfMask method
+This repository contains the code and minimal artifacts required to run the DecSelfMask method.
+
+IMPORTANT NOTE: to obtain the data please email `pferrazzi@fbk.eu`.
 
 If you want to use it as a python package, go to the `use-as-python-package` branch!
 
