@@ -76,13 +76,12 @@ By default, all runs are logged into `wandb`.
 **If you use this work, please cite the paper:**
 
 ```
-@misc{ferrazzi2026decselfmaskleveragingunlabeledtext,
-      title={DECSELFMASK: Leveraging Unlabeled Text via Self-Relevance-Guided Masking for Decoder-Only Classification}, 
+@inproceedings{
+      anonymous2026decselfmaskleveraging,
+      title={DecSelfMask:Leveraging Unlabeled Text via Self-Relevance-Guided Masking for Decoder-Only Classification},
       author={Pietro Ferrazzi and Matteo Merler and Giovanni Bonetta and Alberto Lavelli and Bernardo Magnini},
+      booktitle={The 2026 Conference on Empirical Methods in Natural Language Processing},
       year={2026},
-      eprint={2606.09466},
-      archivePrefix={arXiv},
-      primaryClass={cs.CL},
-      url={https://arxiv.org/abs/2606.09466}, 
+      url={https://openreview.net/forum?id=WcEwBwz1Hd}
 }
 ```
