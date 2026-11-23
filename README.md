@@ -76,12 +76,26 @@ By default, all runs are logged into `wandb`.
 **If you use this work, please cite the paper:**
 
 ```
-@inproceedings{
-      anonymous2026decselfmaskleveraging,
-      title={DecSelfMask:Leveraging Unlabeled Text via Self-Relevance-Guided Masking for Decoder-Only Classification},
-      author={Pietro Ferrazzi and Matteo Merler and Giovanni Bonetta and Alberto Lavelli and Bernardo Magnini},
-      booktitle={The 2026 Conference on Empirical Methods in Natural Language Processing},
-      year={2026},
-      url={https://openreview.net/forum?id=WcEwBwz1Hd}
+@inproceedings{ferrazzi-etal-2026-decselfmask,
+    title = "{D}ec{S}elf{M}ask: Leveraging Unlabeled Text via Self-Relevance-Guided Masking for Decoder-Only Classification",
+    author = "Ferrazzi, Pietro  and
+      Merler, Matteo  and
+      Bonetta, Giovanni  and
+      Lavelli, Alberto  and
+      Magnini, Bernardo",
+    editor = "Lee, Hung-Yi  and
+      Dev, Sunipa  and
+      Li, Junyi Jessy  and
+      Elliott, Desmond",
+    booktitle = "Proceedings of the 2026 Conference on Empirical Methods in Natural Language Processing",
+    month = oct,
+    year = "2026",
+    address = "Budapest, Hungary",
+    publisher = "Association for Computational Linguistics",
+    url = "https://aclanthology.org/2026.emnlp-main.1372/",
+    doi = "10.18653/2026.emnlp-main.1372",
+    pages = "31311--31327",
+    ISBN = "979-8-89176-459-0",
+    abstract = "Classification tasks require annotated data, which can often be expensive, time-consuming, or even unfeasible to collect.This is the case of the medical domain, where large datasets often have few annotated examples. To address this, we propose DecSelfMask (Decoder Self-learning by Masking), an approach to enhance decoder-only performance on classification tasks. We build on common self-learning approaches by leveraging a model to create training examples from unlabeled data, and propose a novel relevance-guided masking strategy.We use relevance attribution methods to determine what portions of unannotated texts are relevant for a task. We then create self-supervised training examples by masking out those portions, training the model to reconstruct them via next-token-prediction. We hypothesize that those examples convey knowledge about the structure and semantics of unannotated data that can be useful for downstream performance. We test our approach on 136 tasks from a collection of 1.9M clinical notes from an Italian hospital. We quantify DecSelfMask{'}s impact on downstream tasks on 5 models of different scales and families, including a probing analysis. Experiments show consistent gains, outperforming the base models (+9.1 points in Macro F1), continual pretraining (+6.3), synthetic label generation (+12.5), as well as common baselines. The results show that relevance attribution can serve as a powerful source of supervision for decoder learning from unlabeled data, beyond existing methods."
 }
 ```
