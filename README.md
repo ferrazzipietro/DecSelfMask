@@ -1,6 +1,6 @@
 # DecSelfMask — Self-Contained Package
 
-This repository contains the class-first, self-contained Python package for the DecSelfMask method. The old script wrappers and the old `src/` training stack have been folded into the package so the main workflow can now be used directly from Python.
+This repository contains the class-first, self-contained Python package for the DecSelfMask method. This branch is designed to be used as a python library. If you want to replicate our experiments, move to the main branch instead.
 
 **Quick links**
 - **Package:** [dec_self_mask/](dec_self_mask/)
